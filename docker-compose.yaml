@@ -1,0 +1,77 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_SERVER__PORT=8080
+      - APP_SERVER__HOST=0.0.0.0
+      - APP_DATABASE__HOST=postgres
+      - APP_DATABASE__PORT=5432
+      - APP_DATABASE__USERNAME=postgres
+      - APP_DATABASE__PASSWORD=postgres
+      - APP_DATABASE__NAME=rust_crud
+      - APP_DATABASE__SSLMODE=disable
+      - APP_DATABASE__MAX_CONNECTIONS=5
+      - APP_DATABASE__MIN_CONNECTIONS=0
+      - APP_DATABASE__CONNECT_TIMEOUT=30
+      - APP_REDIS__HOST=redis
+      - APP_REDIS__PORT=6379
+      - APP_JWT__SECRET=your-super-secret-jwt-key-change-in-production
+      - RUST_LOG=debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rust_crud
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

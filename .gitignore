@@ -1,0 +1,26 @@
+# Build outputs
+/target/
+debug/
+release/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+*.env
+
+# Logs
+*.log
+
+# Backup
+*.bak
+*~
