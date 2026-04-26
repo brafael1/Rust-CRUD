@@ -1,38 +1,38 @@
-# Rust CRUD API
+# API REST Rust CRUD
 
-High-performance REST API built with Rust, Axum, PostgreSQL, and Redis.
+API REST de alta performance desenvolvida em Rust com Axum, PostgreSQL e Redis.
 
-## Features
+## Funcionalidades
 
-- **CRUD Operations**: Create, Read, Update, Delete users
-- **Authentication**: JWT-based authentication with Argon2 password hashing
-- **Caching**: Redis cache for improved read performance
-- **Pagination**: Cursor-based pagination (no OFFSET)
-- **Observability**: Structured logging with tracing
-- **Metrics**: Prometheus-compatible /metrics endpoint
+- **CRUD de Usuários**: Criar, Listar, Obter, Atualizar e Deletar usuários
+- **Autenticação**: JWT com hash de senha Argon2
+- **Cache**: Redis para melhor performance de leitura
+- **Paginação**: Paginação baseada em cursor
+- **Logging**: Logging estruturado com tracing
+- **Métricas**: Endpoint /metrics compatível com Prometheus
 
-## Tech Stack
+## Tecnologias
 
-- **Language**: Rust 1.75+
+- **Linguagem**: Rust 1.75+
 - **Web Framework**: Axum 0.7+
-- **Database**: PostgreSQL 15+
+- **Banco de Dados**: PostgreSQL 15+
 - **Cache**: Redis 7+
 - **ORM**: SQLx
 - **Auth**: JWT + Argon2
 
-## Getting Started
+## Executando o Projeto
 
-### Prerequisites
+### Com Docker
 
-- Rust 1.75+
-- PostgreSQL 15+
-- Redis 7+
-- Docker & Docker Compose (optional)
+```bash
+docker-compose up --build
+```
 
-### Running Locally
+A API estará disponível em `http://localhost:8080`
 
-1. Clone the repository
-2. Set up environment variables or use defaults:
+### Executando Localmente
+
+1. Configure as variáveis de ambiente:
 
 ```bash
 export APP_DATABASE__HOST=localhost
@@ -42,135 +42,105 @@ export APP_DATABASE__PASSWORD=postgres
 export APP_DATABASE__NAME=rust_crud
 export APP_REDIS__HOST=localhost
 export APP_REDIS__PORT=6379
-export APP_JWT__SECRET=your-secret-key
+export APP_JWT__SECRET=sua-chave-secreta
 ```
 
-3. Run the server:
+2. Execute o servidor:
 
 ```bash
 cargo run --release
 ```
 
-### Using Docker
+## Endpoints da API
 
-```bash
-docker-compose up --build
-```
+| Método | Endpoint | Tipo | Descrição |
+|--------|----------|------|-----------|
+| GET | /health | Público | Health check |
+| POST | /auth/register | Público | Criar usuário |
+| POST | /auth/login | Público | Login (retorna token) |
+| GET | /users | Protegido | Listar usuários |
+| GET | /users/:id | Protegido | Obter usuário |
+| PUT | /users/:id | Protegido | Atualizar usuário |
+| DELETE | /users/:id | Protegido | Deletar usuário |
+| GET | /metrics | Público | Métricas |
 
-## API Endpoints
-
-### Public Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | /health | Health check |
-| POST | /auth/login | User login |
-
-### Protected Endpoints
-
-All `/users/*` endpoints require authentication (except documented below).
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /users | Create a new user (public registration) |
-| GET | /users | List users with cursor-based pagination |
-| GET | /users/:id | Get user by ID |
-| PUT | /users/:id | Update user |
-| DELETE | /users/:id | Delete user |
-
-## Request Examples
+## Exemplos com curl
 
 ### Health Check
 ```bash
 curl http://localhost:8080/health
 ```
 
-### User Registration
+### Registrar Usuário
 ```bash
-curl -X POST http://localhost:8080/users \
+curl -X POST http://localhost:8080/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","email":"admin@test.com","password":"password123"}'
+  -d '{"username":"admin","email":"admin@exemplo.com","password":"senha123"}'
 ```
 
-### User Login
+### Login
 ```bash
 curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@test.com","password":"password123"}'
+  -d '{"email":"admin@exemplo.com","password":"senha123"}'
 ```
 
-### List Users
+### Listar Usuários (protegido)
 ```bash
-curl http://localhost:8080/users
+curl http://localhost:8080/users \
+  -H "Authorization: Bearer TOKEN_AQUI"
 ```
 
-### Get User by ID
+### Obter Usuário por ID (protegido)
 ```bash
-curl http://localhost:8080/users/USER_ID
+curl http://localhost:8080/users/ID_DO_USUARIO \
+  -H "Authorization: Bearer TOKEN_AQUI"
 ```
 
-### Update User
+### Atualizar Usuário (protegido)
 ```bash
-curl -X PUT http://localhost:8080/users/USER_ID \
+curl -X PUT http://localhost:8080/users/ID_DO_USUARIO \
   -H "Content-Type: application/json" \
-  -d '{"email":"newemail@test.com"}'
+  -H "Authorization: Bearer TOKEN_AQUI" \
+  -d '{"email":"novo@email.com"}'
 ```
 
-### Delete User
+### Deletar Usuário (protegido)
 ```bash
-curl -X DELETE http://localhost:8080/users/USER_ID
+curl -X DELETE http://localhost:8080/users/ID_DO_USUARIO \
+  -H "Authorization: Bearer TOKEN_AQUI"
 ```
 
-## Configuration
+## Variáveis de Configuração
 
-Configuration can be provided via environment variables with prefix `APP_`:
+| Variável | Padrão | Descrição |
+|----------|--------|-------------|
+| APP_SERVER__PORT | 8080 | Porta do servidor |
+| APP_SERVER__HOST | 0.0.0.0 | Host do servidor |
+| APP_DATABASE__HOST | localhost | Host do PostgreSQL |
+| APP_DATABASE__PORT | 5432 | Porta do PostgreSQL |
+| APP_DATABASE__USERNAME | postgres | Usuário do PostgreSQL |
+| APP_DATABASE__PASSWORD | postgres | Senha do PostgreSQL |
+| APP_DATABASE__NAME | rust_crud | Nome do banco de dados |
+| APP_REDIS__HOST | localhost | Host do Redis |
+| APP_REDIS__PORT | 6379 | Porta do Redis |
+| APP_JWT__SECRET | - | Chave secreta do JWT (obrigatória) |
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| APP_SERVER__PORT | 8080 | Server port |
-| APP_SERVER__HOST | 0.0.0.0 | Server host |
-| APP_DATABASE__HOST | localhost | PostgreSQL host |
-| APP_DATABASE__PORT | 5432 | PostgreSQL port |
-| APP_DATABASE__USERNAME | postgres | PostgreSQL username |
-| APP_DATABASE__PASSWORD | postgres | PostgreSQL password |
-| APP_DATABASE__NAME | rust_crud | Database name |
-| APP_REDIS__HOST | localhost | Redis host |
-| APP_REDIS__PORT | 6379 | Redis port |
-| APP_JWT__SECRET | - | JWT secret (required) |
-
-## Architecture
-
-The project follows a layered architecture:
+## Estrutura do Projeto
 
 ```
 src/
-├── handlers/      # HTTP handlers (controllers)
-├── services/     # Business logic
-├── db/          # Database layer (SQLx)
-├── cache/       # Redis cache layer
-├── models/      # Data models
-├── config/     # Configuration
-├── errors/     # Error types
-├── middlewares/ # HTTP middleware
-└── utils/      # Utilities
+├── handlers/      # Handlers HTTP (controllers)
+├── services/     # Lógica de negócio
+├── db/           # Camada de banco (SQLx)
+├── cache/        # Camada de cache Redis
+├── models/       # Modelos de dados
+├── config/       # Configuração
+├── errors/      # Tipos de erro
+├── middlewares/  # Middlewares HTTP
+└── utils/       # Utilitários
 ```
 
-## Performance Considerations
-
-- Connection pooling for PostgreSQL
-- Cursor-based pagination (avoids OFFSET performance issues)
-- Redis caching for read-heavy operations
-- Prepared statements via SQLx
-- Async/await throughout
-
-## Benchmarking
-
-See the `benchmarks/` directory for k6 load test scripts:
-
-```bash
-k6 run benchmarks/users.js
-```
-
-## License
+## Licença
 
 MIT
