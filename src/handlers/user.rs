@@ -2,19 +2,46 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, HeaderValue, StatusCode},
     Json,
+    response::IntoResponse,
 };
-
 use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::config::AppState;
 use crate::db::UserRepository;
 use crate::errors::ApiError;
+use crate::models::auth::TokenClaims;
 use crate::models::response::{ApiResponse, PaginatedUsersResponse};
 use crate::models::user::{CreateUserRequest, UpdateUserRequest, UserResponse};
 use crate::services::user::UserService;
+
+fn require_auth(headers: &HeaderMap) -> Result<TokenClaims, ApiError> {
+    let auth = headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(|| ApiError::Unauthorized)?;
+
+    if !auth.starts_with("Bearer ") {
+        return Err(ApiError::Unauthorized);
+    }
+
+    let token = &auth[7..];
+    let settings = crate::config::Settings::default();
+
+    use jsonwebtoken::{decode, DecodingKey, Validation};
+
+    let claims = decode::<TokenClaims>(
+        token,
+        &DecodingKey::from_secret(settings.jwt.secret.as_bytes()),
+        &Validation::default(),
+    )
+    .map_err(|_| ApiError::Unauthorized)?
+    .claims;
+
+    Ok(claims)
+}
 
 #[derive(Debug, Deserialize)]
 pub struct ListQuery {
@@ -33,20 +60,26 @@ impl Default for ListQuery {
 
 pub async fn create_user(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<CreateUserRequest>,
-) -> Result<(StatusCode, Json<ApiResponse<UserResponse>>), ApiError> {
+    headers: HeaderMap,
+    Json(payload): Json<CreateUserRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    require_auth(&headers)?;
+
     let repository = UserRepository::new(&state.pool);
     let user_service = UserService::new(&repository, state.redis.clone(), state.settings.clone());
     
-    let response = user_service.create(request).await?;
+    let response = user_service.create(payload).await?;
     
     Ok((StatusCode::CREATED, Json(ApiResponse::new(response))))
 }
 
 pub async fn get_user(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Path(id): Path<Uuid>,
-) -> Result<Json<ApiResponse<UserResponse>>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
+    require_auth(&headers)?;
+
     let repository = UserRepository::new(&state.pool);
     let user_service = UserService::new(&repository, state.redis.clone(), state.settings.clone());
     
@@ -57,21 +90,27 @@ pub async fn get_user(
 
 pub async fn update_user(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Path(id): Path<Uuid>,
-    Json(request): Json<UpdateUserRequest>,
-) -> Result<Json<ApiResponse<UserResponse>>, ApiError> {
+    Json(payload): Json<UpdateUserRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    require_auth(&headers)?;
+
     let repository = UserRepository::new(&state.pool);
     let user_service = UserService::new(&repository, state.redis.clone(), state.settings.clone());
     
-    let response = user_service.update(id, request.email, request.username, request.password).await?;
+    let response = user_service.update(id, payload.email, payload.username, payload.password).await?;
     
     Ok(Json(ApiResponse::new(response)))
 }
 
 pub async fn delete_user(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Path(id): Path<Uuid>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
+    require_auth(&headers)?;
+
     let repository = UserRepository::new(&state.pool);
     let user_service = UserService::new(&repository, state.redis.clone(), state.settings.clone());
     
@@ -82,12 +121,27 @@ pub async fn delete_user(
 
 pub async fn list_users(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Query(query): Query<ListQuery>,
-) -> Result<Json<ApiResponse<PaginatedUsersResponse>>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
+    require_auth(&headers)?;
+
     let repository = UserRepository::new(&state.pool);
     let user_service = UserService::new(&repository, state.redis.clone(), state.settings.clone());
     
     let response = user_service.list(query.cursor, query.limit.unwrap_or(20)).await?;
     
     Ok(Json(ApiResponse::new(response)))
+}
+
+pub async fn register_user(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<CreateUserRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    let repository = UserRepository::new(&state.pool);
+    let user_service = UserService::new(&repository, state.redis.clone(), state.settings.clone());
+    
+    let response = user_service.create(payload).await?;
+    
+    Ok((StatusCode::CREATED, Json(ApiResponse::new(response))))
 }

@@ -88,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/health", get(health))
         .route("/auth/login", post(handlers::auth::login))
-        .route("/users", post(handlers::user::create_user))
+        .route("/auth/register", post(handlers::user::register_user))
         .route("/users", get(handlers::user::list_users))
         .route("/users/:id", get(handlers::user::get_user))
         .route("/users/:id", put(handlers::user::update_user))

@@ -1,19 +1,7 @@
-target/
-debug/
-release/
-.git/
-.gitignore
-*.md
-.docker/
-docker-compose*.yml
-.dockerignore
-.env
-.env.local
-*.log
-*.bak
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-*.swp
-*.swo
+# Ignore everything by default
+*
+
+# But allow these
+!.dockerignore
+!docker-compose.yaml
+!target/release/rust-crud-api
